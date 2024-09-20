@@ -33,7 +33,20 @@ def returnBit(bitNumber,list):
       bit=list[byteCount]>>(bitNumber%8-1)
       return bit
 
+write_cartesian_pos_list_init_durations = []
+write_cartesian_pos_connection_init_durations = []
+write_cartesian_pos_send_durations = []
 
+write_register_connection_init_durations = []
+write_register_send_durations = []
+
+read_cartesian_pos_connection_init_durations = []
+read_cartesian_pos_send_durations = []
+read_cartesian_pos_parse_durations = []
+
+read_register_connection_init_durations = []
+read_register_send_durations = []
+read_register_parse_durations = []
 
 #################
 # Cartiseian Functions
@@ -46,7 +59,11 @@ def returnBit(bitNumber,list):
 def returnCartesianCurrentPostion(drive_path):
 
 # read all Position Registers Cartesian Outputs class 0x7D, I-0x1, A-0x01
+  start = time.perf_counter_ns()
   with CIPDriver(drive_path) as drive:
+        end = time.perf_counter_ns()
+        read_cartesian_pos_connection_init_durations.append(end-start)
+        start = time.perf_counter_ns()
         myPRTag = drive.generic_message(
             service=Services.get_attribute_single,
             class_code=0x7D,
@@ -58,10 +75,13 @@ def returnCartesianCurrentPostion(drive_path):
             route_path=True,
             name='fanucCURPOSread'
         )
+        end = time.perf_counter_ns()
+        read_cartesian_pos_send_durations.append(end-start)
         if (DEBUG == True):
           print("CURPOS Current Cartesian Coordinates 0x7D, IA< 0x01")
           print(myPRTag)
           print("myPRTag.type=", myPRTag.type)
+        start = time.perf_counter_ns()
         myList = list(myPRTag.value)
         if (DEBUG == True):
           print("myList=", myList)
@@ -115,7 +135,10 @@ def returnCartesianCurrentPostion(drive_path):
   returnList.append(E0[0])
   returnList.append(E1[0])
   returnList.append(E2[0])
-  returnList.append(myList) 
+  returnList.append(myList)
+
+  end = time.perf_counter_ns()
+  read_cartesian_pos_parse_durations.append(end-start)
 
   return returnList
 
@@ -210,7 +233,7 @@ def readCartesianPositionRegister(drive_path, PRNumber):
 def writeCartesianPositionRegister(drive_path, PRNumber, myList):
 
    #must set UT/UF to 0
-
+   start = time.perf_counter_ns()
 
    #Build myByteArray
    myByteArray = bytearray(struct.pack('H', 0x0000)) #UTOOL
@@ -228,13 +251,19 @@ def writeCartesianPositionRegister(drive_path, PRNumber, myList):
    myByteArray.extend(struct.pack('f', myList[12]))     #EXT_0
    myByteArray.extend(struct.pack('f', myList[13]))     #EXT_1
    myByteArray.extend(struct.pack('f', myList[14]))     #EXT_2
-   
+
+   end = time.perf_counter_ns()
+   write_cartesian_pos_list_init_durations.append(end-start)
    if (DEBUG == True):
      print("len(bytes(myByteArray=)", len(bytes(myByteArray)))
 
      print(myByteArray)
 
+   start = time.perf_counter_ns()
    with CIPDriver(drive_path) as drive:
+        end = time.perf_counter_ns()
+        write_cartesian_pos_connection_init_durations.append(end-start)
+        start = time.perf_counter_ns()
         myTag = drive.generic_message(
             service=Services.set_attribute_single,
             class_code=0x7B,
@@ -247,6 +276,8 @@ def writeCartesianPositionRegister(drive_path, PRNumber, myList):
             route_path=False,
             name='fanucPRSwrite'
         )
+        end = time.perf_counter_ns()
+        write_cartesian_pos_send_durations.append(end-start)
         if (DEBUG == True):
           print("Write PR registers Current Cartesian Coordinates 0x7B ")
           print(myTag)
@@ -470,7 +501,11 @@ def writeJointPositionRegister(drive_path, PRNumber, myList):
 def writeR_Register(drive_path, RegNum, Value):
 
    myBytes = Value.to_bytes(4,'little')
+   start = time.perf_counter_ns()
    with CIPDriver(drive_path) as drive:
+        end = time.perf_counter_ns()
+        write_register_connection_init_durations.append(end-start)
+        start = time.perf_counter_ns()
         myTag = drive.generic_message(
             service=0x10,
             class_code=0x6B,
@@ -483,6 +518,8 @@ def writeR_Register(drive_path, RegNum, Value):
             route_path=False,
             name='fanucDOread'
         )
+        end = time.perf_counter_ns()
+        write_register_send_durations.append(end-start)
    return myTag.error
 
 
@@ -490,8 +527,11 @@ def writeR_Register(drive_path, RegNum, Value):
 # RegNumb is R[] Register Number
 # returns Value
 def readR_Register(drive_path, RegNum):
-	
+   start = time.perf_counter_ns()
    with CIPDriver(drive_path) as drive:
+        end = time.perf_counter_ns()
+        read_register_connection_init_durations.append(end-start)
+        start = time.perf_counter_ns()
         myTag = drive.generic_message(
             service=0xe,
             class_code=0x6B,
@@ -503,11 +543,16 @@ def readR_Register(drive_path, RegNum):
             route_path=False,
             name='fanucRread'
         )
+        end = time.perf_counter_ns()
+        read_register_send_durations.append(end-start)
         if (DEBUG == True):
           print("R[%d]= %x",RegNum,myTag.value)
           print(myTag)
           print("myTag.type=", myTag.type)
+        start = time.perf_counter_ns()
         myList = list(myTag.value)
+        end = time.perf_counter_ns()
+        read_register_parse_durations.append(end-start)
         if (DEBUG == True):
           print("myList=", myList)
    return myList[0]
