@@ -33,6 +33,7 @@ class fanuc_ethernet_driver:
 
   def __enter__(self):
     self.driver.open()
+    return self
 
   def __exit__(self, exc_type, exc_value, traceback):
     print("__exit__ called, sending stop command...")
