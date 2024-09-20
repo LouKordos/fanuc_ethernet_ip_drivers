@@ -26,690 +26,692 @@ import random
 import time
 import math
 
-def __init__(self, ip):
-   self.driver = CIPDriver(ip)
+class fanuc_ethernet_driver:
 
-def __enter__(self):
-   self.driver.open()
+  def __init__(self, ip):
+    self.driver = CIPDriver(ip)
 
-def __exit__(self, exc_type, exc_value, traceback):
-   print("__exit__ called, sending stop command...")
-   try:
-      register = 1
-      value = 0
-      self.writeR_Register(register, value)
-   except Exception as e:
-      print(f"Failed to send stop command!:{e}")
-   finally:
-      self.driver.close()
+  def __enter__(self):
+    self.driver.open()
 
-# Helper functions
-def returnBit(bitNumber,list):
-      byteCount= int(bitNumber/8)
-      bit=list[byteCount]>>(bitNumber%8-1)
-      return bit
+  def __exit__(self, exc_type, exc_value, traceback):
+    print("__exit__ called, sending stop command...")
+    try:
+        register = 1
+        value = 0
+        self.writeR_Register(register, value)
+    except Exception as e:
+        print(f"Failed to send stop command!:{e}")
+    finally:
+        self.driver.close()
 
-write_cartesian_pos_list_init_durations = []
-write_cartesian_pos_connection_init_durations = []
-write_cartesian_pos_send_durations = []
+  # Helper functions
+  def returnBit(bitNumber,list):
+        byteCount= int(bitNumber/8)
+        bit=list[byteCount]>>(bitNumber%8-1)
+        return bit
 
-write_register_connection_init_durations = []
-write_register_send_durations = []
+  write_cartesian_pos_list_init_durations = []
+  write_cartesian_pos_connection_init_durations = []
+  write_cartesian_pos_send_durations = []
 
-read_cartesian_pos_connection_init_durations = []
-read_cartesian_pos_send_durations = []
-read_cartesian_pos_parse_durations = []
+  write_register_connection_init_durations = []
+  write_register_send_durations = []
 
-read_register_connection_init_durations = []
-read_register_send_durations = []
-read_register_parse_durations = []
+  read_cartesian_pos_connection_init_durations = []
+  read_cartesian_pos_send_durations = []
+  read_cartesian_pos_parse_durations = []
 
-#################
-# Cartiseian Functions
-#################
+  read_register_connection_init_durations = []
+  read_register_send_durations = []
+  read_register_parse_durations = []
 
-# Read Current Position Registers Cart 
-# returns list [UTOOL, UFRAME, X, Y, Z, W, P, R, Turn1, Turn2, Bitflip, EXT_0, EXT_1, EXT_2, bytearray]
-# bytearray contains full return value
+  #################
+  # Cartiseian Functions
+  #################
 
-def returnCartesianCurrentPostion(self):
+  # Read Current Position Registers Cart 
+  # returns list [UTOOL, UFRAME, X, Y, Z, W, P, R, Turn1, Turn2, Bitflip, EXT_0, EXT_1, EXT_2, bytearray]
+  # bytearray contains full return value
 
-# read all Position Registers Cartesian Outputs class 0x7D, I-0x1, A-0x01
-  start = time.perf_counter_ns()
-  drive = self.driver
-  end = time.perf_counter_ns()
-  read_cartesian_pos_connection_init_durations.append(end-start)
-  start = time.perf_counter_ns()
-  myPRTag = drive.generic_message(
+  def returnCartesianCurrentPostion(self):
+
+  # read all Position Registers Cartesian Outputs class 0x7D, I-0x1, A-0x01
+    start = time.perf_counter_ns()
+    drive = self.driver
+    end = time.perf_counter_ns()
+    self.read_cartesian_pos_connection_init_durations.append(end-start)
+    start = time.perf_counter_ns()
+    myPRTag = drive.generic_message(
+          service=Services.get_attribute_single,
+        class_code=0x7D,
+        instance=0x01,
+        attribute=0x01,
+        data_type=None,
+        connected=False,
+        unconnected_send=False,
+        route_path=True,
+        name='fanucCURPOSread'
+    )
+    end = time.perf_counter_ns()
+    self.read_cartesian_pos_send_durations.append(end-start)
+    if (DEBUG == True):
+        print("CURPOS Current Cartesian Coordinates 0x7D, IA< 0x01")
+        print(myPRTag)
+        print("myPRTag.type=", myPRTag.type)
+    start = time.perf_counter_ns()
+    myList = list(myPRTag.value)
+    if (DEBUG == True):
+        print("myList=", myList)
+
+    UTOOL = myList[1]*8+myList[0]
+    UFRAME = myList[3]*8+myList[2]
+    X=struct.unpack('f', bytes(myList[4:8]))
+    Y=struct.unpack('f', bytes(myList[8:12]))
+    Z=struct.unpack('f', bytes(myList[12:16]))
+    W=struct.unpack('f', bytes(myList[16:20]))
+    P=struct.unpack('f', bytes(myList[20:24]))
+    R=struct.unpack('f', bytes(myList[24:28]))
+    turn1=struct.unpack('B', bytes(myList[28:29]))
+    turn2=struct.unpack('B', bytes(myList[29:30]))
+    turn3=struct.unpack('B', bytes(myList[30:31]))
+    bitflip=struct.unpack('B', bytes(myList[31:32]))
+    E0=struct.unpack('f', bytes(myList[32:36]))
+    E1=struct.unpack('f', bytes(myList[36:40]))
+    E2=struct.unpack('f', bytes(myList[40:44]))
+
+    if (DEBUG == True):
+      print("UTOOL=", UTOOL)
+      print("UFRAME=", UFRAME)
+      print("X=", X)
+      print("Y=", Y)
+      print("Z=", Z)
+      print("W=", W)
+      print("P=", P)
+      print("R=", R)
+      print("turn1=", turn1)
+      print("turn2=", turn2)
+      print("turn3=", turn3)
+      print("bitflip=0x", hex(bitflip[0]))
+      print("EXT[0]=", E0)
+      print("EXT[1]=", E1)
+      print("EXT[2]=", E2)
+    
+    returnList = []  
+    returnList.append(UTOOL)
+    returnList.append(UFRAME)
+    returnList.append(X[0])
+    returnList.append(Y[0])
+    returnList.append(Z[0])
+    returnList.append(W[0])
+    returnList.append(P[0])
+    returnList.append(R[0])
+    returnList.append(turn1[0])
+    returnList.append(turn2[0])
+    returnList.append(turn3[0])
+    returnList.append(bitflip[0])
+    returnList.append(E0[0])
+    returnList.append(E1[0])
+    returnList.append(E2[0])
+    returnList.append(myList)
+
+    end = time.perf_counter_ns()
+    self.read_cartesian_pos_parse_durations.append(end-start)
+
+    return returnList
+
+  # Read Position Registers Cartesian  (PR[])
+  # argument PRNumber is the PR register being written to inside the robot - copied to Postition Register by TP Program
+  # to the position register
+  # returns list [UTOOL, UFRAME, X, Y, Z, W, P, R, Turn1, Turn2, Bitflip, EXT_0, EXT_1, EXT_2]
+
+  def readCartesianPositionRegister(self, PRNumber):
+    drive = self.driver # Compatibility reasons
+    myTag = drive.generic_message(
         service=Services.get_attribute_single,
-      class_code=0x7D,
-      instance=0x01,
-      attribute=0x01,
-      data_type=None,
-      connected=False,
-      unconnected_send=False,
-      route_path=True,
-      name='fanucCURPOSread'
-  )
-  end = time.perf_counter_ns()
-  read_cartesian_pos_send_durations.append(end-start)
-  if (DEBUG == True):
-      print("CURPOS Current Cartesian Coordinates 0x7D, IA< 0x01")
-      print(myPRTag)
-      print("myPRTag.type=", myPRTag.type)
-  start = time.perf_counter_ns()
-  myList = list(myPRTag.value)
-  if (DEBUG == True):
+        class_code=0x7B,
+        instance=0x01,
+        attribute=PRNumber,
+        data_type=None,
+        connected=False,
+        unconnected_send=False,
+        route_path=False,
+        name='fanucPRSread'
+    )
+    if (DEBUG == True):
+      print("Read PR registers Cartesian Coordinates 0x7B ")
+      print(myTag)
+      print('myTag.error=', myTag.error)
+      print("myTag.type=", myTag.type)
+
+    myList = list(myTag.value)
+    UTOOL = myList[1]*8+myList[0]
+    UFRAME = myList[3]*8+myList[2]
+    X=struct.unpack('f', bytes(myList[4:8]))
+    Y=struct.unpack('f', bytes(myList[8:12]))
+    Z=struct.unpack('f', bytes(myList[12:16]))
+    W=struct.unpack('f', bytes(myList[16:20]))
+    P=struct.unpack('f', bytes(myList[20:24]))
+    R=struct.unpack('f', bytes(myList[24:28]))
+    turn1=struct.unpack('B', bytes(myList[28:29]))
+    turn2=struct.unpack('B', bytes(myList[29:30]))
+    turn3=struct.unpack('B', bytes(myList[30:31]))
+    bitflip=struct.unpack('B', bytes(myList[31:32]))
+    E0=struct.unpack('f', bytes(myList[32:36]))
+    E1=struct.unpack('f', bytes(myList[36:40]))
+    E2=struct.unpack('f', bytes(myList[40:44]))
+    if (DEBUG == True):
       print("myList=", myList)
 
-  UTOOL = myList[1]*8+myList[0]
-  UFRAME = myList[3]*8+myList[2]
-  X=struct.unpack('f', bytes(myList[4:8]))
-  Y=struct.unpack('f', bytes(myList[8:12]))
-  Z=struct.unpack('f', bytes(myList[12:16]))
-  W=struct.unpack('f', bytes(myList[16:20]))
-  P=struct.unpack('f', bytes(myList[20:24]))
-  R=struct.unpack('f', bytes(myList[24:28]))
-  turn1=struct.unpack('B', bytes(myList[28:29]))
-  turn2=struct.unpack('B', bytes(myList[29:30]))
-  turn3=struct.unpack('B', bytes(myList[30:31]))
-  bitflip=struct.unpack('B', bytes(myList[31:32]))
-  E0=struct.unpack('f', bytes(myList[32:36]))
-  E1=struct.unpack('f', bytes(myList[36:40]))
-  E2=struct.unpack('f', bytes(myList[40:44]))
+      print("UTOOL=", UTOOL)
+      print("UFRAME=", UFRAME)
+      print("X=", X)
+      print("Y=", Y)
+      print("Z=", Z)
+      print("W=", W)
+      print("P=", P)
+      print("R=", R)
+      print("turn1=", turn1)
+      print("turn2=", turn2)
+      print("turn3=", turn3)
+      print("bitflip=0x", hex(bitflip[0]))
+      print("EXT[0]=", E0)
+      print("EXT[1]=", E1)
+      print("EXT[2]=", E2)
 
-  if (DEBUG == True):
-    print("UTOOL=", UTOOL)
-    print("UFRAME=", UFRAME)
-    print("X=", X)
-    print("Y=", Y)
-    print("Z=", Z)
-    print("W=", W)
-    print("P=", P)
-    print("R=", R)
-    print("turn1=", turn1)
-    print("turn2=", turn2)
-    print("turn3=", turn3)
-    print("bitflip=0x", hex(bitflip[0]))
-    print("EXT[0]=", E0)
-    print("EXT[1]=", E1)
-    print("EXT[2]=", E2)
-  
-  returnList = []  
-  returnList.append(UTOOL)
-  returnList.append(UFRAME)
-  returnList.append(X[0])
-  returnList.append(Y[0])
-  returnList.append(Z[0])
-  returnList.append(W[0])
-  returnList.append(P[0])
-  returnList.append(R[0])
-  returnList.append(turn1[0])
-  returnList.append(turn2[0])
-  returnList.append(turn3[0])
-  returnList.append(bitflip[0])
-  returnList.append(E0[0])
-  returnList.append(E1[0])
-  returnList.append(E2[0])
-  returnList.append(myList)
+    returnList = []  
+    returnList.append(UTOOL)
+    returnList.append(UFRAME)
+    returnList.append(X)
+    returnList.append(Y)
+    returnList.append(Z)
+    returnList.append(W)
+    returnList.append(P)
+    returnList.append(R)
+    returnList.append(turn1)
+    returnList.append(turn2)
+    returnList.append(turn3)
+    returnList.append(bitflip)
+    returnList.append(E0)
+    returnList.append(E1)
+    returnList.append(E2)
+    returnList.append(myList) 
 
-  end = time.perf_counter_ns()
-  read_cartesian_pos_parse_durations.append(end-start)
+    return returnList
 
-  return returnList
-
-# Read Position Registers Cartesian  (PR[])
-# argument PRNumber is the PR register being written to inside the robot - copied to Postition Register by TP Program
-# to the position register
-# returns list [UTOOL, UFRAME, X, Y, Z, W, P, R, Turn1, Turn2, Bitflip, EXT_0, EXT_1, EXT_2]
-
-def readCartesianPositionRegister(self, PRNumber):
-  drive = self.driver # Compatibility reasons
-  myTag = drive.generic_message(
-      service=Services.get_attribute_single,
-      class_code=0x7B,
-      instance=0x01,
-      attribute=PRNumber,
-      data_type=None,
-      connected=False,
-      unconnected_send=False,
-      route_path=False,
-      name='fanucPRSread'
-  )
-  if (DEBUG == True):
-    print("Read PR registers Cartesian Coordinates 0x7B ")
-    print(myTag)
-    print('myTag.error=', myTag.error)
-    print("myTag.type=", myTag.type)
-
-  myList = list(myTag.value)
-  UTOOL = myList[1]*8+myList[0]
-  UFRAME = myList[3]*8+myList[2]
-  X=struct.unpack('f', bytes(myList[4:8]))
-  Y=struct.unpack('f', bytes(myList[8:12]))
-  Z=struct.unpack('f', bytes(myList[12:16]))
-  W=struct.unpack('f', bytes(myList[16:20]))
-  P=struct.unpack('f', bytes(myList[20:24]))
-  R=struct.unpack('f', bytes(myList[24:28]))
-  turn1=struct.unpack('B', bytes(myList[28:29]))
-  turn2=struct.unpack('B', bytes(myList[29:30]))
-  turn3=struct.unpack('B', bytes(myList[30:31]))
-  bitflip=struct.unpack('B', bytes(myList[31:32]))
-  E0=struct.unpack('f', bytes(myList[32:36]))
-  E1=struct.unpack('f', bytes(myList[36:40]))
-  E2=struct.unpack('f', bytes(myList[40:44]))
-  if (DEBUG == True):
-    print("myList=", myList)
-
-    print("UTOOL=", UTOOL)
-    print("UFRAME=", UFRAME)
-    print("X=", X)
-    print("Y=", Y)
-    print("Z=", Z)
-    print("W=", W)
-    print("P=", P)
-    print("R=", R)
-    print("turn1=", turn1)
-    print("turn2=", turn2)
-    print("turn3=", turn3)
-    print("bitflip=0x", hex(bitflip[0]))
-    print("EXT[0]=", E0)
-    print("EXT[1]=", E1)
-    print("EXT[2]=", E2)
-
-  returnList = []  
-  returnList.append(UTOOL)
-  returnList.append(UFRAME)
-  returnList.append(X)
-  returnList.append(Y)
-  returnList.append(Z)
-  returnList.append(W)
-  returnList.append(P)
-  returnList.append(R)
-  returnList.append(turn1)
-  returnList.append(turn2)
-  returnList.append(turn3)
-  returnList.append(bitflip)
-  returnList.append(E0)
-  returnList.append(E1)
-  returnList.append(E2)
-  returnList.append(myList) 
-
-  return returnList
-
-# Write Position Registers Cartesian  (PR[])
-# argument PRNumber is the PR register being written to inside the robot - copied to Postition Register by TP Program
-# argument SyncDInput is the DI[x] register being written to inside the robot to tell the robot to start the transfer 
-# to the position register
-# other argument as list [UTOOL, UFRAME, X, Y, Z, W, P, R, Turn1, Turn2, Bitflip, EXT_0, EXT_1, EXT_2]
+  # Write Position Registers Cartesian  (PR[])
+  # argument PRNumber is the PR register being written to inside the robot - copied to Postition Register by TP Program
+  # argument SyncDInput is the DI[x] register being written to inside the robot to tell the robot to start the transfer 
+  # to the position register
+  # other argument as list [UTOOL, UFRAME, X, Y, Z, W, P, R, Turn1, Turn2, Bitflip, EXT_0, EXT_1, EXT_2]
 
 
-def writeCartesianPositionRegister(self, PRNumber, myList):
-   #must set UT/UF to 0
-   start = time.perf_counter_ns()
+  def writeCartesianPositionRegister(self, PRNumber, myList):
+    #must set UT/UF to 0
+    start = time.perf_counter_ns()
 
-   #Build myByteArray
-   myByteArray = bytearray(struct.pack('H', 0x0000)) #UTOOL
-   myByteArray.extend(struct.pack('H', 0))      #UFRAME
-   myByteArray.extend(struct.pack('f', myList[2]))      #X
-   myByteArray.extend(struct.pack('f', myList[3]))      #Y
-   myByteArray.extend(struct.pack('f', myList[4]))      #Z
-   myByteArray.extend(struct.pack('f', myList[5]))      #W
-   myByteArray.extend(struct.pack('f', myList[6]))      #P
-   myByteArray.extend(struct.pack('f', myList[7]))      #R
-   myByteArray.extend(struct.pack('B', myList[8]))      #Turn1
-   myByteArray.extend(struct.pack('B', myList[9]))      #Turn2
-   myByteArray.extend(struct.pack('B', myList[10]))     #Turn3
-   myByteArray.extend(struct.pack('B', myList[11]))     #Bitflip
-   myByteArray.extend(struct.pack('f', myList[12]))     #EXT_0
-   myByteArray.extend(struct.pack('f', myList[13]))     #EXT_1
-   myByteArray.extend(struct.pack('f', myList[14]))     #EXT_2
+    #Build myByteArray
+    myByteArray = bytearray(struct.pack('H', 0x0000)) #UTOOL
+    myByteArray.extend(struct.pack('H', 0))      #UFRAME
+    myByteArray.extend(struct.pack('f', myList[2]))      #X
+    myByteArray.extend(struct.pack('f', myList[3]))      #Y
+    myByteArray.extend(struct.pack('f', myList[4]))      #Z
+    myByteArray.extend(struct.pack('f', myList[5]))      #W
+    myByteArray.extend(struct.pack('f', myList[6]))      #P
+    myByteArray.extend(struct.pack('f', myList[7]))      #R
+    myByteArray.extend(struct.pack('B', myList[8]))      #Turn1
+    myByteArray.extend(struct.pack('B', myList[9]))      #Turn2
+    myByteArray.extend(struct.pack('B', myList[10]))     #Turn3
+    myByteArray.extend(struct.pack('B', myList[11]))     #Bitflip
+    myByteArray.extend(struct.pack('f', myList[12]))     #EXT_0
+    myByteArray.extend(struct.pack('f', myList[13]))     #EXT_1
+    myByteArray.extend(struct.pack('f', myList[14]))     #EXT_2
 
-   end = time.perf_counter_ns()
-   write_cartesian_pos_list_init_durations.append(end-start)
-   if (DEBUG == True):
-     print("len(bytes(myByteArray=)", len(bytes(myByteArray)))
+    end = time.perf_counter_ns()
+    self.write_cartesian_pos_list_init_durations.append(end-start)
+    if (DEBUG == True):
+      print("len(bytes(myByteArray=)", len(bytes(myByteArray)))
 
-     print(myByteArray)
+      print(myByteArray)
 
-   start = time.perf_counter_ns()
-   drive = self.driver
-   end = time.perf_counter_ns()
-   write_cartesian_pos_connection_init_durations.append(end-start)
-   start = time.perf_counter_ns()
-   myTag = drive.generic_message(
-        service=Services.set_attribute_single,
-       class_code=0x7B,
-       instance=0x01,
-       attribute=PRNumber,
-       data_type=None,
-       connected=False,
-       request_data=bytes(myByteArray[0:44]),
-       unconnected_send=False,
-       route_path=False,
-       name='fanucPRSwrite'
-   )
-   end = time.perf_counter_ns()
-   write_cartesian_pos_send_durations.append(end-start)
-   if (DEBUG == True):
-     print("Write PR registers Current Cartesian Coordinates 0x7B ")
-     print(myTag)
-     print('myTag.error=', myTag.error)
-     print("myTag.type=", myTag.type)
-
-
-   return myTag.error
-
-#################
-# Joint Space Functions
-#################
-
-def returnJointCurrentPosition(drive_path):
-
-# read all CURJPOS Joint Outputs class 0x7D, I-0x1, A-0x01
-  with CIPDriver(drive_path) as drive:
-        myPRTag = drive.generic_message(
-            service=Services.get_attribute_single,
-            class_code=0x7E,
-            instance=0x01,
-            attribute=0x01,
-            data_type=None,
-            connected=False,
-            unconnected_send=False,
-            route_path=True,
-            name='fanucCURJPOSread'
-        )
-        if (DEBUG == True):
-          print("CURJPOS Current Joint Coordinates 0x7E, IA< 0x01")
-          print(myPRTag)
-          print("myPRTag.type=", myPRTag.type)
-        myList = list(myPRTag.value)
-        if (DEBUG == True):
-          print("myList=", myList)
-
-  UTOOL = myList[1]*8+myList[0]
-  UFRAME = myList[3]*8+myList[2]
-  J1=struct.unpack('f', bytes(myList[4:8]))
-  J2=struct.unpack('f', bytes(myList[8:12]))
-  J3=struct.unpack('f', bytes(myList[12:16]))
-  J4=struct.unpack('f', bytes(myList[16:20]))
-  J5=struct.unpack('f', bytes(myList[20:24]))
-  J6=struct.unpack('f', bytes(myList[24:28]))
-  J7=struct.unpack('f', bytes(myList[28:32]))
-  J8=struct.unpack('f', bytes(myList[32:36]))
-  J9=struct.unpack('f', bytes(myList[36:40]))
-  if (math.isnan(J7[0]) == True):
-     J7=(0.0,)
-  J8=struct.unpack('f', bytes(myList[32:36]))
-  if (math.isnan(J8[0]) == True):
-     J8=(0.0,)
-  J9=struct.unpack('f', bytes(myList[36:40]))
-  if (math.isnan(J9[0]) == True):
-     J9=(0.0,)
-
-  if (DEBUG == True):
-    print("UTOOL=", UTOOL)
-    print("UFRAME=", UFRAME)
-    print("J1=", J1)
-    print("J2=", J2)
-    print("J3=", J3)
-    print("J4=", J4)
-    print("J5=", J5)
-    print("J6=", J6)
-    print("J7=", J7)
-    print("J8=", J8)
-    print("J9=", J9)
-  
-  returnList = []  
-  returnList.append(UTOOL)
-  returnList.append(UFRAME)
-  returnList.append(J1[0])
-  returnList.append(J2[0])
-  returnList.append(J3[0])
-  returnList.append(J4[0])
-  returnList.append(J5[0])
-  returnList.append(J6[0])
-  returnList.append(J7[0])
-  returnList.append(J8[0])
-  returnList.append(J9[0])
-  returnList.append(myList) 
-
-  return returnList
+    start = time.perf_counter_ns()
+    drive = self.driver
+    end = time.perf_counter_ns()
+    self.write_cartesian_pos_connection_init_durations.append(end-start)
+    start = time.perf_counter_ns()
+    myTag = drive.generic_message(
+          service=Services.set_attribute_single,
+        class_code=0x7B,
+        instance=0x01,
+        attribute=PRNumber,
+        data_type=None,
+        connected=False,
+        request_data=bytes(myByteArray[0:44]),
+        unconnected_send=False,
+        route_path=False,
+        name='fanucPRSwrite'
+    )
+    end = time.perf_counter_ns()
+    self.write_cartesian_pos_send_durations.append(end-start)
+    if (DEBUG == True):
+      print("Write PR registers Current Cartesian Coordinates 0x7B ")
+      print(myTag)
+      print('myTag.error=', myTag.error)
+      print("myTag.type=", myTag.type)
 
 
-def readJointPositionRegister(drive_path, PRNumber):
+    return myTag.error
+
+  #################
+  # Joint Space Functions
+  #################
+
+  def returnJointCurrentPosition(drive_path):
+
+  # read all CURJPOS Joint Outputs class 0x7D, I-0x1, A-0x01
+    with CIPDriver(drive_path) as drive:
+          myPRTag = drive.generic_message(
+              service=Services.get_attribute_single,
+              class_code=0x7E,
+              instance=0x01,
+              attribute=0x01,
+              data_type=None,
+              connected=False,
+              unconnected_send=False,
+              route_path=True,
+              name='fanucCURJPOSread'
+          )
+          if (DEBUG == True):
+            print("CURJPOS Current Joint Coordinates 0x7E, IA< 0x01")
+            print(myPRTag)
+            print("myPRTag.type=", myPRTag.type)
+          myList = list(myPRTag.value)
+          if (DEBUG == True):
+            print("myList=", myList)
+
+    UTOOL = myList[1]*8+myList[0]
+    UFRAME = myList[3]*8+myList[2]
+    J1=struct.unpack('f', bytes(myList[4:8]))
+    J2=struct.unpack('f', bytes(myList[8:12]))
+    J3=struct.unpack('f', bytes(myList[12:16]))
+    J4=struct.unpack('f', bytes(myList[16:20]))
+    J5=struct.unpack('f', bytes(myList[20:24]))
+    J6=struct.unpack('f', bytes(myList[24:28]))
+    J7=struct.unpack('f', bytes(myList[28:32]))
+    J8=struct.unpack('f', bytes(myList[32:36]))
+    J9=struct.unpack('f', bytes(myList[36:40]))
+    if (math.isnan(J7[0]) == True):
+      J7=(0.0,)
+    J8=struct.unpack('f', bytes(myList[32:36]))
+    if (math.isnan(J8[0]) == True):
+      J8=(0.0,)
+    J9=struct.unpack('f', bytes(myList[36:40]))
+    if (math.isnan(J9[0]) == True):
+      J9=(0.0,)
+
+    if (DEBUG == True):
+      print("UTOOL=", UTOOL)
+      print("UFRAME=", UFRAME)
+      print("J1=", J1)
+      print("J2=", J2)
+      print("J3=", J3)
+      print("J4=", J4)
+      print("J5=", J5)
+      print("J6=", J6)
+      print("J7=", J7)
+      print("J8=", J8)
+      print("J9=", J9)
+    
+    returnList = []  
+    returnList.append(UTOOL)
+    returnList.append(UFRAME)
+    returnList.append(J1[0])
+    returnList.append(J2[0])
+    returnList.append(J3[0])
+    returnList.append(J4[0])
+    returnList.append(J5[0])
+    returnList.append(J6[0])
+    returnList.append(J7[0])
+    returnList.append(J8[0])
+    returnList.append(J9[0])
+    returnList.append(myList) 
+
+    return returnList
 
 
-  with CIPDriver(drive_path) as drive:
-        myTag = drive.generic_message(
-            service=Services.get_attribute_single,
-            class_code=0x7C,
-            instance=0x01,
-            attribute=0x01,
-            data_type=None,
-            connected=False,
-            unconnected_send=False,
-            route_path=False,
-            name='fanucPRSread'
-        )
+  def readJointPositionRegister(drive_path, PRNumber):
 
-
-        if (DEBUG == True):
-          print("PR Contents Joint Coordinates 0x7C, IA< 0x01")
-          print(myTag)
-          print("myTag.type=", myTag.type)
-        myList = list(myTag.value)
-        if (DEBUG == True):
-          print("myList=", myList)
-
-  UTOOL = myList[1]*8+myList[0]
-  UFRAME = myList[3]*8+myList[2]
-  J1=struct.unpack('f', bytes(myList[4:8]))
-  J2=struct.unpack('f', bytes(myList[8:12]))
-  J3=struct.unpack('f', bytes(myList[12:16]))
-  J4=struct.unpack('f', bytes(myList[16:20]))
-  J5=struct.unpack('f', bytes(myList[20:24]))
-  J6=struct.unpack('f', bytes(myList[24:28]))
-  J7=struct.unpack('f', bytes(myList[28:32]))
-  if (math.isnan(J7[0]) == True):
-     J7=(0.0,)
-  J8=struct.unpack('f', bytes(myList[32:36]))
-  if (math.isnan(J8[0]) == True):
-     J8=(0.0,)
-  J9=struct.unpack('f', bytes(myList[36:40]))
-  if (math.isnan(J9[0]) == True):
-     J9=(0.0,)
-
-  if (DEBUG == True):
-    print("UTOOL=", UTOOL)
-    print("UFRAME=", UFRAME)
-    print("J1=", J1)
-    print("J2=", J2)
-    print("J3=", J3)
-    print("J4=", J4)
-    print("J5=", J5)
-    print("J6=", J6)
-    print("J7=", J7)
-    print("J8=", J8)
-    print("J9=", J9)
-  
-  returnList = []  
-  returnList.append(UTOOL)
-  returnList.append(UFRAME)
-  returnList.append(J1[0])
-  returnList.append(J2[0])
-  returnList.append(J3[0])
-  returnList.append(J4[0])
-  returnList.append(J5[0])
-  returnList.append(J6[0])
-  returnList.append(J7[0])
-  returnList.append(J8[0])
-  returnList.append(J9[0])
-  returnList.append(myList) 
-
-  return returnList
-
-
-# Write Position Registers Joint  (PR[])
-# argument PRNumber is the PR register being written to inside the robot - copied to Postition Register by TP Program
-# argument SyncDInput is the DI[x] register being written to inside the robot to tell the robot to start the transfer 
-# to the position register
-# other argument as list [UTOOL, UFRAME, J1, J2, J3, J4, J5, J6, J7, J8, J9]
-
-def writeJointPositionRegister(self, PRNumber, myList):
-
-   #must set UT/UF to 0
-
-
-   #Build myByteArray
-   myByteArray = bytearray(struct.pack('H', 0x0000)) #UTOOL
-   myByteArray.extend(struct.pack('H', 0x0000))      #UFRAME
-   myByteArray.extend(struct.pack('f', myList[2]))      #J1
-   myByteArray.extend(struct.pack('f', myList[3]))      #J2
-   myByteArray.extend(struct.pack('f', myList[4]))      #J3
-   myByteArray.extend(struct.pack('f', myList[5]))      #J4
-   myByteArray.extend(struct.pack('f', myList[6]))      #J5
-   myByteArray.extend(struct.pack('f', myList[7]))      #J6
-   myByteArray.extend(struct.pack('f', myList[8]))      #J7
-   myByteArray.extend(struct.pack('f', myList[9]))      #J8
-   myByteArray.extend(struct.pack('f', myList[10]))     #J9
-   
-   if (DEBUG == True):
-     print("len(bytes(myByteArray=)", len(bytes(myByteArray)))
-
-     print(myByteArray)
-
-   drive = self.driver
-   myTag = drive.generic_message(
-        service=Services.set_attribute_single,
-       class_code=0x7C,
-       instance=0x01,
-       attribute=PRNumber,
-       data_type=None,
-       connected=False,
-       request_data=bytes(myByteArray[0:40]),
-       unconnected_send=False,
-       route_path=False,
-       name='fanucPRSwrite'
-   )
-   if (DEBUG == True):
-     print("Write PR registers Current Joint Coordinates 0x7C ")
-     print(myTag)
-     print('myTag.error=', myTag.error)
-     print("myTag.type=", myTag.type)
-
-   return myTag.error
-
-# write to 16 bit R[] Register 
-# RegNumb is R[] Register Number, Value is up to 16 bits
-# returns error code
-def writeR_Register(self, RegNum, Value):
-
-   myBytes = Value.to_bytes(4,'little')
-   start = time.perf_counter_ns()
-   drive = self.driver
-   end = time.perf_counter_ns()
-   write_register_connection_init_durations.append(end-start)
-   start = time.perf_counter_ns()
-   myTag = drive.generic_message(
-        service=0x10,
-       class_code=0x6B,
-       instance=0x1,
-       attribute=RegNum,
-       request_data=myBytes[0:4],
-       data_type=None,
-       connected=False,
-       unconnected_send=False,
-       route_path=False,
-       name='fanucDOread'
-   )
-   end = time.perf_counter_ns()
-   write_register_send_durations.append(end-start)
-
-   return myTag.error
-
-# read from 16 bit R[] Register 
-# RegNumb is R[] Register Number
-# returns Value
-def readR_Register(self, RegNum):
-   start = time.perf_counter_ns()
-   drive = self.driver
-   end = time.perf_counter_ns()
-   read_register_connection_init_durations.append(end-start)
-   start = time.perf_counter_ns()
-   myTag = drive.generic_message(
-        service=0xe,
-       class_code=0x6B,
-       instance=0x1,  
-       attribute=RegNum,
-       data_type=None,
-       connected=False,
-       unconnected_send=False,
-       route_path=False,
-       name='fanucRread'
-   )
-   end = time.perf_counter_ns()
-   read_register_send_durations.append(end-start)
-   if (DEBUG == True):
-     print("R[%d]= %x",RegNum,myTag.value)
-     print(myTag)
-     print("myTag.type=", myTag.type)
-   start = time.perf_counter_ns()
-   myList = list(myTag.value)
-   end = time.perf_counter_ns()
-   read_register_parse_durations.append(end-start)
-   if (DEBUG == True):
-     print("myList=", myList)
-   return myList[0]
-
-def readDigitalInputs(drive_path):
 
     with CIPDriver(drive_path) as drive:
-        myTag = drive.generic_message(
-            service=Services.get_attribute_single,
-            class_code=0x04,
-            instance=0x320,
-            attribute=0x03,
-            data_type=None,
-            connected=False,
-            unconnected_send=False,
-            route_path=False,
-            name='fanucDIread'
-        )
-        if (DEBUG == True):
-          print("Digital Input 0x320")
-        myList = list(myTag.value)
-        if (DEBUG == True):
-          print("myList=", myList)
-        return myList
+          myTag = drive.generic_message(
+              service=Services.get_attribute_single,
+              class_code=0x7C,
+              instance=0x01,
+              attribute=0x01,
+              data_type=None,
+              connected=False,
+              unconnected_send=False,
+              route_path=False,
+              name='fanucPRSread'
+          )
 
 
-def readDigitalOutputs(drive_path):
-  # read all Digital Outputs 0x321
-  with CIPDriver(drive_path) as drive:
-        myTag = drive.generic_message(
-            service=Services.get_attribute_single,
-            class_code=0x04,
-            instance=0x321,
-            attribute=0x03,
-            data_type=None,
-            connected=False,
-            unconnected_send=False,
-            route_path=False,
-            name='fanucDOread'
-        )
-        if (DEBUG == True):
-          print("Digital Outputs 0x321")
-          print(myTag)
-          print("myTag.type=", myTag.type)
-        myList = list(myTag.value)
-        if (DEBUG == True):
-          print("myList=", myList) 
-        return myList
-  
+          if (DEBUG == True):
+            print("PR Contents Joint Coordinates 0x7C, IA< 0x01")
+            print(myTag)
+            print("myTag.type=", myTag.type)
+          myList = list(myTag.value)
+          if (DEBUG == True):
+            print("myList=", myList)
+
+    UTOOL = myList[1]*8+myList[0]
+    UFRAME = myList[3]*8+myList[2]
+    J1=struct.unpack('f', bytes(myList[4:8]))
+    J2=struct.unpack('f', bytes(myList[8:12]))
+    J3=struct.unpack('f', bytes(myList[12:16]))
+    J4=struct.unpack('f', bytes(myList[16:20]))
+    J5=struct.unpack('f', bytes(myList[20:24]))
+    J6=struct.unpack('f', bytes(myList[24:28]))
+    J7=struct.unpack('f', bytes(myList[28:32]))
+    if (math.isnan(J7[0]) == True):
+      J7=(0.0,)
+    J8=struct.unpack('f', bytes(myList[32:36]))
+    if (math.isnan(J8[0]) == True):
+      J8=(0.0,)
+    J9=struct.unpack('f', bytes(myList[36:40]))
+    if (math.isnan(J9[0]) == True):
+      J9=(0.0,)
+
+    if (DEBUG == True):
+      print("UTOOL=", UTOOL)
+      print("UFRAME=", UFRAME)
+      print("J1=", J1)
+      print("J2=", J2)
+      print("J3=", J3)
+      print("J4=", J4)
+      print("J5=", J5)
+      print("J6=", J6)
+      print("J7=", J7)
+      print("J8=", J8)
+      print("J9=", J9)
+    
+    returnList = []  
+    returnList.append(UTOOL)
+    returnList.append(UFRAME)
+    returnList.append(J1[0])
+    returnList.append(J2[0])
+    returnList.append(J3[0])
+    returnList.append(J4[0])
+    returnList.append(J5[0])
+    returnList.append(J6[0])
+    returnList.append(J7[0])
+    returnList.append(J8[0])
+    returnList.append(J9[0])
+    returnList.append(myList) 
+
+    return returnList
 
 
-def readDigitalInput(drive_path, InputNumber):
-  '''
-  Read one digital input value (I.E. Read the value at DI[1])
+  # Write Position Registers Joint  (PR[])
+  # argument PRNumber is the PR register being written to inside the robot - copied to Postition Register by TP Program
+  # argument SyncDInput is the DI[x] register being written to inside the robot to tell the robot to start the transfer 
+  # to the position register
+  # other argument as list [UTOOL, UFRAME, J1, J2, J3, J4, J5, J6, J7, J8, J9]
 
-  :param str drive-path: IP location of the robot
-  :param int InputNumber: Digital Input (DI) you want to read
-  :return: Value at DI[ InputNumber ]
-  :rtype: int (1 or 0)
+  def writeJointPositionRegister(self, PRNumber, myList):
 
-  :raises ValueError: if InputNumber <=0
-  '''
-  # Each input register is 8-bits long (I.E. R1 holds DI[1:8])
-  if not InputNumber: # If Input is 0
-    raise ValueError("Cannot select 0-th register, does not exist")
-
-  inputs = readDigitalInputs(drive_path) # Read in all registers
-  register = ((InputNumber-1)//8) # What register block the input is in
-  value = inputs[register] >> ((InputNumber-1)  % 8) # Get the value at the input position requested and whatever is to the right
-  value = value &1 # Truncate to just the position
-  #print("Register Num:",register)
-  #print("Full Register:",inputs[register])
-  print("Value:", value)
-  return value
+    #must set UT/UF to 0
 
 
-def readDigitalOutput(drive_path, OutputNumber):
-  '''
-  Read one digital output value (I.E. Read the value at DO[1])
+    #Build myByteArray
+    myByteArray = bytearray(struct.pack('H', 0x0000)) #UTOOL
+    myByteArray.extend(struct.pack('H', 0x0000))      #UFRAME
+    myByteArray.extend(struct.pack('f', myList[2]))      #J1
+    myByteArray.extend(struct.pack('f', myList[3]))      #J2
+    myByteArray.extend(struct.pack('f', myList[4]))      #J3
+    myByteArray.extend(struct.pack('f', myList[5]))      #J4
+    myByteArray.extend(struct.pack('f', myList[6]))      #J5
+    myByteArray.extend(struct.pack('f', myList[7]))      #J6
+    myByteArray.extend(struct.pack('f', myList[8]))      #J7
+    myByteArray.extend(struct.pack('f', myList[9]))      #J8
+    myByteArray.extend(struct.pack('f', myList[10]))     #J9
+    
+    if (DEBUG == True):
+      print("len(bytes(myByteArray=)", len(bytes(myByteArray)))
 
-  :param str drive-path: IP location of the robot
-  :param int OutputNumber: Digital Output (DO) you want to read
-  :return: Value at DO[ OutputNumber ]
-  :rtype: int (1 or 0)
+      print(myByteArray)
 
-  :raises ValueError: if OutputNumber <=0
-  '''
-  # Each output register is 8-bits long (I.E. R1 holds DO[1:8])
-  if not OutputNumber: # If Input is 0
-    raise ValueError("Cannot select 0-th register, does not exist")
+    drive = self.driver
+    myTag = drive.generic_message(
+          service=Services.set_attribute_single,
+        class_code=0x7C,
+        instance=0x01,
+        attribute=PRNumber,
+        data_type=None,
+        connected=False,
+        request_data=bytes(myByteArray[0:40]),
+        unconnected_send=False,
+        route_path=False,
+        name='fanucPRSwrite'
+    )
+    if (DEBUG == True):
+      print("Write PR registers Current Joint Coordinates 0x7C ")
+      print(myTag)
+      print('myTag.error=', myTag.error)
+      print("myTag.type=", myTag.type)
 
-  outputs = readDigitalOutputs(drive_path) # Read in all registers
-  register = ((OutputNumber-1)//8) # What register block the output is in
-  value = outputs[register] >> ((OutputNumber-1)  % 8) # Get the value at the output position requested and whatever is to the right
-  value = value &1 # Truncate to just the position
-  #print("Register Num:",register)
-  #print("Full Register:",outputs[register])
-  print("Value:", value)
-  return value
-   
+    return myTag.error
 
-def writeDigitalInput(drive_path, OutputNumber, Value):
-  """
-  Fanuc does not support writes to DI/DO with explicit messaging (what we are doing here).
-  Possible work around in the future?
-  """
-  raise NotImplementedError("writeDigialInput: This function will do nothing. WIP")
-  register = ((OutputNumber-1)//8) # What register block the output is in
-  bit = ((OutputNumber-1) % 8) # What bit in that register needs to be edited
+  # write to 16 bit R[] Register 
+  # RegNumb is R[] Register Number, Value is up to 16 bits
+  # returns error code
+  def writeR_Register(self, RegNum, Value):
 
-  print("Register:", register+1)
-  print("Bit:",bit)
+    myBytes = Value.to_bytes(4,'little')
+    start = time.perf_counter_ns()
+    drive = self.driver
+    end = time.perf_counter_ns()
+    self.write_register_connection_init_durations.append(end-start)
+    start = time.perf_counter_ns()
+    myTag = drive.generic_message(
+          service=0x10,
+        class_code=0x6B,
+        instance=0x1,
+        attribute=RegNum,
+        request_data=myBytes[0:4],
+        data_type=None,
+        connected=False,
+        unconnected_send=False,
+        route_path=False,
+        name='fanucDOread'
+    )
+    end = time.perf_counter_ns()
+    self.write_register_send_durations.append(end-start)
+
+    return myTag.error
+
+  # read from 16 bit R[] Register 
+  # RegNumb is R[] Register Number
+  # returns Value
+  def readR_Register(self, RegNum):
+    start = time.perf_counter_ns()
+    drive = self.driver
+    end = time.perf_counter_ns()
+    self.read_register_connection_init_durations.append(end-start)
+    start = time.perf_counter_ns()
+    myTag = drive.generic_message(
+          service=0xe,
+        class_code=0x6B,
+        instance=0x1,  
+        attribute=RegNum,
+        data_type=None,
+        connected=False,
+        unconnected_send=False,
+        route_path=False,
+        name='fanucRread'
+    )
+    end = time.perf_counter_ns()
+    self.read_register_send_durations.append(end-start)
+    if (DEBUG == True):
+      print("R[%d]= %x",RegNum,myTag.value)
+      print(myTag)
+      print("myTag.type=", myTag.type)
+    start = time.perf_counter_ns()
+    myList = list(myTag.value)
+    end = time.perf_counter_ns()
+    self.read_register_parse_durations.append(end-start)
+    if (DEBUG == True):
+      print("myList=", myList)
+    return myList[0]
+
+  def readDigitalInputs(drive_path):
+
+      with CIPDriver(drive_path) as drive:
+          myTag = drive.generic_message(
+              service=Services.get_attribute_single,
+              class_code=0x04,
+              instance=0x320,
+              attribute=0x03,
+              data_type=None,
+              connected=False,
+              unconnected_send=False,
+              route_path=False,
+              name='fanucDIread'
+          )
+          if (DEBUG == True):
+            print("Digital Input 0x320")
+          myList = list(myTag.value)
+          if (DEBUG == True):
+            print("myList=", myList)
+          return myList
 
 
-  outputs = readDigitalOutputs(drive_path) # Get current register values
-  Old_R = outputs[register] # Old value at output register X
-  print("Old Register Value:", Old_R)
-  print("Old Bin:",bin(Old_R))
-  print("R:",readR_Register(drive_path,register+1))
+  def readDigitalOutputs(drive_path):
+    # read all Digital Outputs 0x321
+    with CIPDriver(drive_path) as drive:
+          myTag = drive.generic_message(
+              service=Services.get_attribute_single,
+              class_code=0x04,
+              instance=0x321,
+              attribute=0x03,
+              data_type=None,
+              connected=False,
+              unconnected_send=False,
+              route_path=False,
+              name='fanucDOread'
+          )
+          if (DEBUG == True):
+            print("Digital Outputs 0x321")
+            print(myTag)
+            print("myTag.type=", myTag.type)
+          myList = list(myTag.value)
+          if (DEBUG == True):
+            print("myList=", myList) 
+          return myList
+    
 
-  # This prevents us from changing the value of nearby digital registers
-  if Value:
-    if Value > 1:
-      print("Value is larger than 1, setting to 1...")
-      Value = 1 
-    New_R = Old_R | (1<<bit)
-  elif Value == 0:
-    New_R = Old_R & ~(1<<bit)
-  else:
-     raise ValueError("Value cannot be a negative integer.")
-  
-  print("New Register Value:", New_R)
-  print("New Bin:",bin(New_R))
 
-  outputs[register] = New_R
-  
-  bytesMessage = bytes(outputs)
-  print("Message:",bytesMessage)
-  with CIPDriver(drive_path) as drive:
-        myTag = drive.generic_message(
-            service=Services.set_attribute_single,
-            class_code=0x04,
-            instance=0x320,
-            attribute=0x03,
-            request_data=bytesMessage,
-            data_type=None,
-            connected=False,
-            unconnected_send=False,
-            route_path=False,
-            name='fanucDIread'
-        )
-  return myTag.error
+  def readDigitalInput(drive_path, InputNumber):
+    '''
+    Read one digital input value (I.E. Read the value at DI[1])
+
+    :param str drive-path: IP location of the robot
+    :param int InputNumber: Digital Input (DI) you want to read
+    :return: Value at DI[ InputNumber ]
+    :rtype: int (1 or 0)
+
+    :raises ValueError: if InputNumber <=0
+    '''
+    # Each input register is 8-bits long (I.E. R1 holds DI[1:8])
+    if not InputNumber: # If Input is 0
+      raise ValueError("Cannot select 0-th register, does not exist")
+
+    inputs = readDigitalInputs(drive_path) # Read in all registers
+    register = ((InputNumber-1)//8) # What register block the input is in
+    value = inputs[register] >> ((InputNumber-1)  % 8) # Get the value at the input position requested and whatever is to the right
+    value = value &1 # Truncate to just the position
+    #print("Register Num:",register)
+    #print("Full Register:",inputs[register])
+    print("Value:", value)
+    return value
+
+
+  def readDigitalOutput(drive_path, OutputNumber):
+    '''
+    Read one digital output value (I.E. Read the value at DO[1])
+
+    :param str drive-path: IP location of the robot
+    :param int OutputNumber: Digital Output (DO) you want to read
+    :return: Value at DO[ OutputNumber ]
+    :rtype: int (1 or 0)
+
+    :raises ValueError: if OutputNumber <=0
+    '''
+    # Each output register is 8-bits long (I.E. R1 holds DO[1:8])
+    if not OutputNumber: # If Input is 0
+      raise ValueError("Cannot select 0-th register, does not exist")
+
+    outputs = readDigitalOutputs(drive_path) # Read in all registers
+    register = ((OutputNumber-1)//8) # What register block the output is in
+    value = outputs[register] >> ((OutputNumber-1)  % 8) # Get the value at the output position requested and whatever is to the right
+    value = value &1 # Truncate to just the position
+    #print("Register Num:",register)
+    #print("Full Register:",outputs[register])
+    print("Value:", value)
+    return value
+    
+
+  def writeDigitalInput(drive_path, OutputNumber, Value):
+    """
+    Fanuc does not support writes to DI/DO with explicit messaging (what we are doing here).
+    Possible work around in the future?
+    """
+    raise NotImplementedError("writeDigialInput: This function will do nothing. WIP")
+    register = ((OutputNumber-1)//8) # What register block the output is in
+    bit = ((OutputNumber-1) % 8) # What bit in that register needs to be edited
+
+    print("Register:", register+1)
+    print("Bit:",bit)
+
+
+    outputs = readDigitalOutputs(drive_path) # Get current register values
+    Old_R = outputs[register] # Old value at output register X
+    print("Old Register Value:", Old_R)
+    print("Old Bin:",bin(Old_R))
+    print("R:",readR_Register(drive_path,register+1))
+
+    # This prevents us from changing the value of nearby digital registers
+    if Value:
+      if Value > 1:
+        print("Value is larger than 1, setting to 1...")
+        Value = 1 
+      New_R = Old_R | (1<<bit)
+    elif Value == 0:
+      New_R = Old_R & ~(1<<bit)
+    else:
+      raise ValueError("Value cannot be a negative integer.")
+    
+    print("New Register Value:", New_R)
+    print("New Bin:",bin(New_R))
+
+    outputs[register] = New_R
+    
+    bytesMessage = bytes(outputs)
+    print("Message:",bytesMessage)
+    with CIPDriver(drive_path) as drive:
+          myTag = drive.generic_message(
+              service=Services.set_attribute_single,
+              class_code=0x04,
+              instance=0x320,
+              attribute=0x03,
+              request_data=bytesMessage,
+              data_type=None,
+              connected=False,
+              unconnected_send=False,
+              route_path=False,
+              name='fanucDIread'
+          )
+    return myTag.error
 
 
 
